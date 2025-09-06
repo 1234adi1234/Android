@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Tracker</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container my-5">
+        <!-- Header -->
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-map-marker-alt text-primary"></i>
+                    Location Tracker
+                </h1>
+                <p class="lead text-muted">Track and store location data with ease</p>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Add Location Form -->
+        <div class="row mb-5">
+            <div class="col-lg-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            Add New Location
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('update_location') }}">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label for="name" class="form-label">
+                                        <i class="fas fa-tag me-1"></i>
+                                        Location Name
+                                    </label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           placeholder="Enter location name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="lat" class="form-label">
+                                        <i class="fas fa-compass me-1"></i>
+                                        Latitude
+                                    </label>
+                                    <input type="number" step="any" class="form-control" id="lat" name="lat" 
+                                           placeholder="e.g., 40.7128" required>
+                                    <div class="form-text">Range: -90 to 90</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="lon" class="form-label">
+                                        <i class="fas fa-compass me-1"></i>
+                                        Longitude
+                                    </label>
+                                    <input type="number" step="any" class="form-control" id="lon" name="lon" 
+                                           placeholder="e.g., -74.0060" required>
+                                    <div class="form-text">Range: -180 to 180</div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>
+                                        Save Location
+                                    </button>
+                                    <button type="button" class="btn btn-secondary ms-2" onclick="getCurrentLocation()">
+                                        <i class="fas fa-crosshairs me-2"></i>
+                                        Use Current Location
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Endpoints Info -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-code me-2"></i>
+                            API Endpoints
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="api-endpoint">
+                                    <span class="badge bg-success me-2">POST</span>
+                                    <code>/update</code>
+                                    <p class="small text-muted mt-1">Add new location (JSON: name, lat, lon)</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="api-endpoint">
+                                    <span class="badge bg-primary me-2">GET</span>
+                                    <code>/get</code>
+                                    <p class="small text-muted mt-1">Get latest location</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="api-endpoint">
+                                    <span class="badge bg-info me-2">GET</span>
+                                    <code>/all</code>
+                                    <p class="small text-muted mt-1">Get all locations</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Locations Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Saved Locations ({{ locations|length }})
+                        </h5>
+                        {% if locations %}
+                            <form method="POST" action="{{ url_for('clear_locations') }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-danger btn-sm" 
+                                        onclick="return confirm('Are you sure you want to clear all locations?')">
+                                    <i class="fas fa-trash me-1"></i>
+                                    Clear All
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if locations %}
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th><i class="fas fa-hashtag me-1"></i>#</th>
+                                            <th><i class="fas fa-tag me-1"></i>Name</th>
+                                            <th><i class="fas fa-map-marker-alt me-1"></i>Coordinates</th>
+                                            <th><i class="fas fa-clock me-1"></i>Timestamp</th>
+                                            <th><i class="fas fa-external-link-alt me-1"></i>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for location in locations|reverse %}
+                                            <tr>
+                                                <td>{{ loop.revindex }}</td>
+                                                <td>
+                                                    <strong>{{ location.name }}</strong>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted d-block">
+                                                        Lat: {{ "%.6f"|format(location.lat) }}
+                                                    </small>
+                                                    <small class="text-muted">
+                                                        Lon: {{ "%.6f"|format(location.lon) }}
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <small>{{ location.timestamp.split('T')[0] }}</small><br>
+                                                    <small class="text-muted">{{ location.timestamp.split('T')[1].split('.')[0] }}</small>
+                                                </td>
+                                                <td>
+                                                    <a href="https://www.google.com/maps?q={{ location.lat }},{{ location.lon }}" 
+                                                       target="_blank" class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-map me-1"></i>
+                                                        View
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-map-marker-alt fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No locations saved yet</h5>
+                                <p class="text-muted">Add your first location using the form above.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Get current location using browser geolocation API
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    document.getElementById('lat').value = position.coords.latitude.toFixed(6);
+                    document.getElementById('lon').value = position.coords.longitude.toFixed(6);
+                    
+                    // Optionally set a default name
+                    if (!document.getElementById('name').value) {
+                        document.getElementById('name').value = 'Current Location';
+                    }
+                }, function(error) {
+                    let errorMsg = 'Unable to retrieve location: ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg += 'Permission denied';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg += 'Position unavailable';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg += 'Request timeout';
+                            break;
+                        default:
+                            errorMsg += 'Unknown error';
+                            break;
+                    }
+                    alert(errorMsg);
+                });
+            } else {
+                alert('Geolocation is not supported by this browser.');
+            }
+        }
+    </script>
+</body>
+</html>
